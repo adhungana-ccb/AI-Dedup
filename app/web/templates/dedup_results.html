@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <h4 class="mb-3">AI Merge Suggestions – Detailed View</h4>
+
+  <p class="text-muted">
+    Select which AI suggestions you want to apply in Jira, then click <strong>Merge to Jira</strong>.
+    Total suggestions: {{ total_decisions }}.
+  </p>
+
+  {% if dedup_page and dedup_page|length > 0 %}
+    <!-- Page size selector and navigation back to main view -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <strong>Page {{ page }} of {{ total_pages }}</strong>
+      </div>
+      <div class="d-flex align-items-center">
+        <form method="get" class="d-flex align-items-center me-3">
+          <input type="hidden" name="page" value="1" />
+          <label class="me-2 mb-0">Rows per page:</label>
+          <select
+            name="ui_page_size"
+            class="form-select form-select-sm"
+            onchange="this.form.submit()"
+          >
+            <option value="20" {% if ui_page_size == 20 %}selected{% endif %}>20</option>
+            <option value="50" {% if ui_page_size == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if ui_page_size == 100 %}selected{% endif %}>100</option>
+          </select>
+        </form>
+        <a href="{{ url_for('web.index') }}#wizard-step-3" class="btn btn-link btn-sm">
+          &laquo; Back to main view
+        </a>
+      </div>
+    </div>
+
+    <!-- Merge form -->
+    <form method="post" action="{{ url_for('web.dedup_apply') }}" id="merge-form">
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>
+              <input type="checkbox" id="select-all" />
+            </th>
+            <th>Canonical Test</th>
+            <th>Duplicate Test</th>
+            <th>Summary 1 (Canonical)</th>
+            <th>Summary 2 (Duplicate)</th>
+            <th>Reason to merge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in dedup_page %}
+            <tr>
+              <td>
+                <input
+                  type="checkbox"
+                  name="selected"
+                  value="{{ d._idx }}"
+                  class="merge-checkbox"
+                />
+              </td>
+              <td>{{ d.canonical_key }}</td>
+              <td>{{ d.duplicate_key }}</td>
+              <td>{{ d.canonical_summary }}</td>
+              <td>{{ d.duplicate_summary }}</td>
+              <td>{{ d.reason_to_merge }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      {% set window = 3 %}
+      {% set half = 1 %}
+      {% set start_page = page - half %}
+      {% if start_page < 1 %}
+        {% set start_page = 1 %}
+      {% endif %}
+      {% set end_page = start_page + window - 1 %}
+      {% if end_page > total_pages %}
+        {% set end_page = total_pages %}
+        {% set start_page = end_page - window + 1 %}
+        {% if start_page < 1 %}
+          {% set start_page = 1 %}
+        {% endif %}
+      {% endif %}
+
+      <nav aria-label="Dedup suggestions pagination">
+        <ul class="pagination">
+          {% if page > 1 %}
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="{{ url_for('web.dedup_results', page=1, ui_page_size=ui_page_size) }}"
+              >
+                First
+              </a>
+            </li>
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="{{ url_for('web.dedup_results', page=page-1, ui_page_size=ui_page_size) }}"
+              >
+                Previous
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">First</span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link">Previous</span>
+            </li>
+          {% endif %}
+
+          {% for p in range(start_page, end_page + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+              <a
+                class="page-link"
+                href="{{ url_for('web.dedup_results', page=p, ui_page_size=ui_page_size) }}"
+              >
+                {{ p }}
+              </a>
+            </li>
+          {% endfor %}
+
+          {% if page < total_pages %}
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="{{ url_for('web.dedup_results', page=page+1, ui_page_size=ui_page_size) }}"
+              >
+                Next
+              </a>
+            </li>
+            <li class="page-item">
+              <a
+                class="page-link"
+                href="{{ url_for('web.dedup_results', page=total_pages, ui_page_size=ui_page_size) }}"
+              >
+                Last
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">Next</span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link">Last</span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+
+      <div class="d-flex justify-content-end mt-3">
+        <button
+          type="submit"
+          class="btn btn-primary"
+          id="merge-button"
+          disabled
+        >
+          Merge to Jira
+        </button>
+      </div>
+    </form>
+  {% else %}
+    <p>No AI merge suggestions available. Run Step 3 from the main page first.</p>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const selectAll = document.getElementById("select-all");
+  const checkboxes = document.querySelectorAll(".merge-checkbox");
+  const mergeButton = document.getElementById("merge-button");
+
+  function updateMergeButton() {
+    let anyChecked = false;
+    checkboxes.forEach(cb => {
+      if (cb.checked) anyChecked = true;
+    });
+    mergeButton.disabled = !anyChecked;
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener("change", function () {
+      const checked = this.checked;
+      checkboxes.forEach(cb => { cb.checked = checked; });
+      updateMergeButton();
+    });
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener("change", updateMergeButton);
+  });
+
+  updateMergeButton();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Full-screen overlay with centered card -->
+<div
+  id="loading-overlay"
+  style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.25);
+    z-index:9999;
+  "
+>
+  <div
+    id="loading-card"
+    class="bg-white rounded shadow"
+    style="
+      max-width: 650px;
+      width: 90%;
+      margin: auto;
+      margin-top: 10%;
+      padding: 2rem 2.5rem;
+      text-align: center;
+    "
+  >
+    <div class="spinner-border text-primary" role="status" style="width:4rem;height:4rem;">
+      <span class="visually-hidden">Processing...</span>
+    </div>
+    <div class="mt-3 fs-5 fw-semibold">
+      Please wait while the analysis completes...
+    </div>
+    <div class="mt-4">
+      <h5>Did you know?</h5>
+      <p id="did-you-know-text" class="mb-0 px-1" style="line-height:1.5;"></p>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Wizard step navigation -->
+  <ul class="nav nav-pills nav-justified mb-4" id="wizard-steps-nav">
+    <li class="nav-item">
+      <a class="nav-link active" href="javascript:void(0)" data-step="1">1. Credentials</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="javascript:void(0)" data-step="2">2. Select Test Scope &amp; Find Similarities</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if not summary %}disabled{% endif %}" href="javascript:void(0)" data-step="3">
+        3. Review &amp; Merge with AI
+      </a>
+    </li>
+  </ul>
+
+  <!-- STEP 1 + STEP 2 are in the same form (Phase 1 & 2) -->
+  <form method="post" id="analyze-form">
+    <input type="hidden" name="action" value="analyze" />
+
+    <!-- STEP 1: Credentials -->
+    <div id="wizard-step-1" class="wizard-step">
+      <h4>Step 1 – Enter Credentials</h4>
+
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input
+          type="email"
+          name="email"
+          class="form-control"
+          value="{{ email }}"
+          required
+        />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Jira API Token</label>
+        <input
+          type="password"
+          name="api_token"
+          class="form-control"
+          value="{{ api_token }}"
+          required
+        />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">AI (IQ) API Token</label>
+        <input
+          type="password"
+          name="iq_token"
+          class="form-control"
+          value="{{ iq_token }}"
+          required
+        />
+        <div class="form-text">
+          Used to call the AI service that suggests which tests to merge or keep.
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <button
+          type="button"
+          id="step1-next-btn"
+          class="btn btn-primary"
+          disabled
+        >
+          Next &raquo;
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Find Test Cases & Duplicates -->
+    <div id="wizard-step-2" class="wizard-step" style="display: none;">
+      <h4>Step 2 – Select Test Scope &amp; Find Similarities</h4>
+
+      <div class="mb-3">
+        <label class="form-label">Project Key</label>
+        <input
+          type="text"
+          name="project"
+          class="form-control"
+          value="{{ project }}"
+          required
+        />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Issue Type</label>
+        <input
+          type="text"
+          name="issue_type"
+          class="form-control"
+          value="{{ issue_type }}"
+        />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Search keyword (optional)</label>
+        <input
+          type="text"
+          name="search_term"
+          class="form-control"
+          value="{{ search_term }}"
+        />
+        <div class="form-text">
+          Works like Jira's basic search. If provided, only tests whose text (for example, summary/description)
+          contains this keyword will be included, combined with any labels and exclusions below.
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Labels (comma-separated, optional)</label>
+        <textarea
+          name="other_labels"
+          class="form-control"
+          rows="2"
+        >{{ other_labels_text }}</textarea>
+        <div class="form-text">
+          If provided, the query will require tests to have at least one of these labels.
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Labels to exclude (comma-separated, optional)</label>
+        <input
+          type="text"
+          name="exclude_labels"
+          class="form-control"
+          value="{{ exclude_labels_text }}"
+        />
+        <div class="form-text">
+          If provided, tests that have any of these labels will be excluded.
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">
+          Similarity threshold (%) <span class="text-muted">(enter 1–99)</span>
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          name="threshold"
+          class="form-control"
+          value="{{ threshold_percent }}"
+        />
+        <div class="form-text">
+          Whole number percentage. For example, 85 means 0.85 similarity threshold.
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <div class="form-text">
+          The JQL is roughly:
+          <code>
+            project = &lt;project&gt;
+            AND issuetype = &lt;type&gt;
+            [AND labels IN (Label1, Label2, ...)]
+            [AND text ~ "&lt;search_term&gt;"]
+            [AND labels NOT IN (ExcludedLabel1, ExcludedLabel2, ...)]
+            AND status != Rejected
+          </code>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between">
+        <button type="button" id="step2-back-btn" class="btn btn-outline-secondary">
+          &laquo; Back
+        </button>
+        <button type="submit" class="btn btn-primary">
+          Fetch Tests &amp; Identify Similarities
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- STEP 3: Deduplicate with AI + results (only if summary exists) -->
+  <div id="wizard-step-3" class="wizard-step" {% if not summary %}style="display:none;"{% endif %}>
+    <h4>Step 3 – Review &amp; Merge with AI</h4>
+
+    {% if summary %}
+      <div class="mb-3">
+        <p><strong>JQL used:</strong></p>
+        <pre>{{ summary.jql }}</pre>
+      </div>
+
+      <ul class="list-group mb-3">
+        <li class="list-group-item">
+          <strong>Total tests fetched:</strong> {{ summary.count_issues }}
+        </li>
+        <li class="list-group-item">
+          <strong>Similar test pairs identified:</strong> {{ summary.count_candidates }}
+        </li>
+        <li class="list-group-item">
+          <strong>Similarity threshold:</strong> {{ summary.threshold_percent }}%
+        </li>
+      </ul>
+
+      <div class="mb-3">
+        <a href="{{ url_for('web.download_jsonl') }}" class="btn btn-outline-secondary">
+          Download normalized tests (jira_tests.jsonl)
+        </a>
+        <a href="{{ url_for('web.download_csv') }}" class="btn btn-outline-secondary ms-2">
+          Download similarity candidates (duplicate_candidates.csv)
+        </a>
+      </div>
+
+      <hr />
+
+      <!-- Phase 3 form (AI dedup) -->
+      <form method="post" id="dedup-form" class="mb-4">
+        <input type="hidden" name="action" value="dedup" />
+        <div class="mb-3">
+          <label class="form-label">Instructions for AI</label>
+          <textarea
+            name="instruction_text"
+            class="form-control"
+            rows="3"
+          >{{ instruction_text }}</textarea>
+          <div class="form-text">
+            Optional guidance for how the AI should merge tests.
+            Example: “Don’t merge scenarios that differ by restore-to-original vs restore-to-alternate.”
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">
+          Analyze Duplicates with AI
+        </button>
+      </form>
+
+      <!-- Similar test pairs (for reference) -->
+      <h5 class="mb-2">
+        Similar Test Pairs (for review)
+        {% if total_pages and total_pages > 1 %}
+          (page {{ page }} of {{ total_pages }})
+        {% endif %}
+      </h5>
+
+      {% if candidates_page and candidates_page|length > 0 %}
+        <div class="d-flex justify-content-end mb-2">
+          <form method="get" class="d-flex align-items-center">
+            <input type="hidden" name="page" value="1" />
+            <label class="me-2 mb-0">Rows per page:</label>
+            <select
+              name="ui_page_size"
+              class="form-select form-select-sm"
+              onchange="this.form.submit()"
+            >
+              <option value="20" {% if ui_page_size == 20 %}selected{% endif %}>20</option>
+              <option value="50" {% if ui_page_size == 50 %}selected{% endif %}>50</option>
+              <option value="100" {% if ui_page_size == 100 %}selected{% endif %}>100</option>
+            </select>
+          </form>
+        </div>
+
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr>
+              <th>Issue 1</th>
+              <th>Issue 2</th>
+              <th>Similarity</th>
+              <th>Similarity %</th>
+              <th>Summary 1</th>
+              <th>Summary 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in candidates_page %}
+              <tr>
+                <td>{{ row.issue_key_1 }}</td>
+                <td>{{ row.issue_key_2 }}</td>
+                <td>{{ row.similarity }}</td>
+                <td>{{ row.similarity_percent }}</td>
+                <td>{{ row.summary_1 }}</td>
+                <td>{{ row.summary_2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% set window = 3 %}
+        {% set half = 1 %}
+        {% set start_page = page - half %}
+        {% if start_page < 1 %}
+          {% set start_page = 1 %}
+        {% endif %}
+        {% set end_page = start_page + window - 1 %}
+        {% if end_page > total_pages %}
+          {% set end_page = total_pages %}
+          {% set start_page = end_page - window + 1 %}
+          {% if start_page < 1 %}
+            {% set start_page = 1 %}
+          {% endif %}
+        {% endif %}
+
+        <nav aria-label="Candidate pairs pagination">
+          <ul class="pagination">
+            {% if page > 1 %}
+              <li class="page-item">
+                <a
+                  class="page-link"
+                  href="{{ url_for('web.index', page=1, ui_page_size=ui_page_size) }}#wizard-step-3"
+                >
+                  First
+                </a>
+              </li>
+              <li class="page-item">
+                <a
+                  class="page-link"
+                  href="{{ url_for('web.index', page=page-1, ui_page_size=ui_page_size) }}#wizard-step-3"
+                >
+                  Previous
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">First</span>
+              </li>
+              <li class="page-item disabled">
+                <span class="page-link">Previous</span>
+              </li>
+            {% endif %}
+
+            {% for p in range(start_page, end_page + 1) %}
+              <li class="page-item {% if p == page %}active{% endif %}">
+                <a
+                  class="page-link"
+                  href="{{ url_for('web.index', page=p, ui_page_size=ui_page_size) }}#wizard-step-3"
+                >
+                  {{ p }}
+                </a>
+              </li>
+            {% endfor %}
+
+            {% if page < total_pages %}
+              <li class="page-item">
+                <a
+                  class="page-link"
+                  href="{{ url_for('web.index', page=page+1, ui_page_size=ui_page_size) }}#wizard-step-3"
+                >
+                  Next
+                </a>
+              </li>
+              <li class="page-item">
+                <a
+                  class="page-link"
+                  href="{{ url_for('web.index', page=total_pages, ui_page_size=ui_page_size) }}#wizard-step-3"
+                >
+                  Last
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">Next</span>
+              </li>
+              <li class="page-item disabled">
+                <span class="page-link">Last</span>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% else %}
+        <p>No similar pairs yet. Complete Step 2 to fetch tests and compute similarities.</p>
+      {% endif %}
+
+      {% if dedup_decisions and dedup_decisions|length > 0 %}
+        <hr />
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-0">AI Merge Suggestions</h5>
+            <small class="text-muted">
+              Total suggestions: {{ dedup_decisions|length }} duplicate tests.
+            </small>
+          </div>
+          <div>
+            <a
+              href="{{ url_for('web.dedup_results') }}"
+              class="btn btn-primary btn-sm"
+            >
+              View detailed merge suggestions
+            </a>
+            <a
+              href="{{ url_for('web.download_dedup_csv') }}"
+              class="btn btn-outline-secondary btn-sm ms-2"
+            >
+              Download merge suggestions (CSV)
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    {% else %}
+      <p>No results yet. Complete Steps 1 and 2, then return here to review and merge with AI.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const stepNavLinks = document.querySelectorAll("#wizard-steps-nav .nav-link");
+  const step1 = document.getElementById("wizard-step-1");
+  const step2 = document.getElementById("wizard-step-2");
+  const step3 = document.getElementById("wizard-step-3");
+
+  const nextBtn = document.getElementById("step1-next-btn");
+  const backBtn = document.getElementById("step2-back-btn");
+
+  const emailInput = document.querySelector('input[name="email"]');
+  const apiTokenInput = document.querySelector('input[name="api_token"]');
+  const iqTokenInput = document.querySelector('input[name="iq_token"]');
+
+  const loadingOverlay = document.getElementById("loading-overlay");
+  const didYouKnowText = document.getElementById("did-you-know-text");
+  const analyzeForm = document.getElementById("analyze-form");
+  const dedupForm = document.getElementById("dedup-form");
+
+  let aiFactInterval = null;
+  var hasSummary = {{ 'true' if summary else 'false' }};
+
+  const aiFacts = [
+    "DeepMind's AlphaFold has mapped the structures of hundreds of millions of proteins, giving scientists a virtual 'microscope' for biology that used to require years of lab work.",
+    "In 2023, researchers used AI to design a new antibiotic that kills a drug-resistant superbug, after screening millions of candidate molecules in simulation instead of in the lab.",
+    "AI systems now translate between dozens of languages in real time, letting people hold conversations with no shared language and no human interpreter.",
+    "Hospitals are piloting AI tools that can flag early signs of diseases like diabetic retinopathy or certain cancers from medical images, often before symptoms are obvious to clinicians.",
+    "Some logistics companies use AI to plan delivery routes so efficiently that they cut fuel consumption and CO₂ emissions by double-digit percentages across entire fleets.",
+    "AI is being used to optimize power grids and predict renewable energy output, helping balance electricity demand and reduce waste in large cities.",
+    "Scientists are using AI to discover entirely new materials, including better batteries and solar-cell designs, by exploring huge design spaces that would be impossible to search manually.",
+    "AI models can now generate realistic synthetic voices and faces, which has driven new research and regulations around deepfake detection and media authenticity.",
+    "In agriculture, AI systems analyze satellite and drone imagery to detect crop stress early, guiding farmers on exactly where to water or apply nutrients and reducing environmental impact.",
+    "Financial institutions rely on AI to scan billions of transactions in real time, catching complex fraud patterns that humans would almost certainly miss.",
+    "AI has been used to simulate new drug candidates and predict their behavior in the body, shortening parts of the drug discovery process from years to months.",
+    "Cities are experimenting with AI-controlled traffic lights that adapt in real time to traffic patterns, reducing congestion and cutting commuter travel times.",
+    "Emergency-response teams are using AI to analyze satellite images after disasters, quickly identifying damaged buildings and blocked roads to prioritize rescue efforts."
+  ];
+
+  let aiFactIndex = 0;
+
+  function showStep(n) {
+    step1.style.display = "none";
+    step2.style.display = "none";
+    if (step3) { step3.style.display = "none"; }
+
+    stepNavLinks.forEach(function (link) {
+      link.classList.remove("active");
+    });
+
+    if (n === 1) {
+      step1.style.display = "block";
+      stepNavLinks[0].classList.add("active");
+    } else if (n === 2) {
+      step2.style.display = "block";
+      stepNavLinks[1].classList.add("active");
+    } else if (n === 3 && step3) {
+      step3.style.display = "block";
+      stepNavLinks[2].classList.add("active");
+    }
+  }
+
+  if (hasSummary) {
+    showStep(3);
+  } else {
+    showStep(1);
+  }
+
+  stepNavLinks.forEach(function (link) {
+    link.addEventListener("click", function () {
+      const step = parseInt(this.getAttribute("data-step"), 10);
+      if (step === 3 && !hasSummary) {
+        return;
+      }
+      showStep(step);
+    });
+  });
+
+  function updateNextButtonState() {
+    const ok =
+      emailInput.value.trim() !== "" &&
+      apiTokenInput.value.trim() !== "" &&
+      iqTokenInput.value.trim() !== "";
+    nextBtn.disabled = !ok;
+  }
+
+  emailInput.addEventListener("input", updateNextButtonState);
+  apiTokenInput.addEventListener("input", updateNextButtonState);
+  iqTokenInput.addEventListener("input", updateNextButtonState);
+  updateNextButtonState();
+
+  nextBtn.addEventListener("click", function () {
+    showStep(2);
+  });
+
+  if (backBtn) {
+    backBtn.addEventListener("click", function () {
+      showStep(1);
+    });
+  }
+
+  function showNextFact() {
+    if (!didYouKnowText || aiFacts.length === 0) return;
+    didYouKnowText.textContent = aiFacts[aiFactIndex];
+    aiFactIndex = (aiFactIndex + 1) % aiFacts.length;
+  }
+
+  function showOverlayWithFact() {
+    showNextFact(); // initial
+    if (aiFactInterval) {
+      clearInterval(aiFactInterval);
+    }
+    aiFactInterval = setInterval(showNextFact, 15000);
+    loadingOverlay.style.display = "block";
+  }
+
+  if (analyzeForm) {
+    analyzeForm.addEventListener("submit", function () {
+      showOverlayWithFact();
+    });
+  }
+  if (dedupForm) {
+    dedupForm.addEventListener("submit", function () {
+      showOverlayWithFact();
+    });
+  }
+});
+</script>
+{% endblock %}
