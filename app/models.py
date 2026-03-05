@@ -19,3 +19,8 @@ class CandidatePair:
     similarity: float
     summary_1: str
     summary_2: str
+
+    @property
+    def similarity_percent(self) -> str:
+        """Return similarity as a percentage string."""
+        return f"{self.similarity * 100:.2f}"

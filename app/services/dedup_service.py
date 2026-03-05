@@ -184,7 +184,9 @@ def _build_clusters_from_candidates(
 _iq_default_model: str = ""
 
 # Optional: force a specific model ID to avoid /v1/models variability.
-_FORCED_IQ_MODEL_ID: str = ""
+# Claude 3.5 Haiku - cost-effective and reliable for structured analysis tasks
+# Cost: $4.80/M tokens (input: $0.80, output: $4.00)
+_FORCED_IQ_MODEL_ID: str = "claude-3-5-haiku"
 
 # Track total IQ token usage for the current dedup run
 _iq_usage_counters = {"prompt": 0, "completion": 0, "total": 0}
@@ -341,10 +343,18 @@ def _call_iq_for_cluster(
         "  over purely manual duplicates if coverage is the same).\n"
         "- For merged tests, pick canonical keys and classify other tests as duplicates.\n"
         "- For tests that should remain separate, mark them as 'keep'.\n"
+        "- IMPORTANT: When merging tests, provide a 'merged_summary' that:\n"
+        "  1) Follows the same naming convention/format as the original test summaries\n"
+        "  2) Is CONCISE - a title/summary, NOT a description (max 15-20 words)\n"
+        "  3) Captures the key variations (e.g., 'with hidden/non-hidden folders', 'to original/alternate location')\n"
+        "  4) Maintains the prefix/category structure (e.g., 'Exchange: Backup -', 'SharePoint:', etc.)\n"
+        "  Example: If merging 'Restore file to original' + 'Restore file to alternate',\n"
+        "  write 'Restore file to original or alternate location' NOT a lengthy description.\n"
         "- Always return STRICT JSON, no extra commentary.\n"
         "- The JSON schema MUST be:\n"
         "  {\n"
         '    "cluster_id": "string",\n'
+        '    "merged_summary": "string (comprehensive summary covering all merged scenarios)",\n'
         '    "decisions": [\n'
         "      {\n"
         '        "key": "string",\n'
@@ -505,6 +515,8 @@ def dedup_with_iq(
             continue
 
         iq_cluster_id = iq_result.get("cluster_id", cluster_id)
+        merged_summary = iq_result.get("merged_summary", "")
+
         for d in iq_result.get("decisions", []):
             role = d.get("role")
             if role != "duplicate":
@@ -522,6 +534,7 @@ def dedup_with_iq(
                     "canonical_key": canonical_of,
                     "duplicate_key": key,
                     "reason": notes,
+                    "merged_summary": merged_summary,
                 }
             )
 
@@ -579,47 +592,69 @@ def fetch_ai_fact(iq_base_url: str, iq_token: str) -> str:
     """
     fallback_facts = [
         (
-            "DeepMind's AlphaFold predicted the 3D structure of over 200 million proteins—"
-            "essentially every protein known to science—transforming how researchers "
-            "approach drug discovery and disease research."
+            "OpenAI's o1 reasoning model can solve complex PhD-level physics and mathematics problems "
+            "by 'thinking' through multi-step solutions, achieving 83% accuracy on International "
+            "Mathematics Olympiad qualifying exams—far beyond previous AI capabilities."
         ),
         (
-            "Researchers recently used AI to discover a new antibiotic that kills a "
-            "drug-resistant superbug by virtually screening hundreds of millions of "
-            "molecules—something that would have been impractical by hand."
+            "DeepMind's AlphaFold 3 can now predict not just protein structures but how proteins "
+            "interact with drugs, DNA, and other molecules—accelerating drug discovery by allowing "
+            "researchers to virtually test billions of drug candidates before entering the lab."
         ),
         (
-            "The European Union agreed on the AI Act, the first comprehensive law to "
-            "regulate AI systems, in a way similar to how GDPR reshaped global data privacy."
+            "AI helped design control systems for fusion reactors that achieved stable plasma "
+            "confinement, bringing commercially viable nuclear fusion energy closer to reality "
+            "and potentially solving the world's clean energy challenge."
         ),
         (
-            "Modern AI systems can translate between dozens of languages in real time, "
-            "enabling cross-border collaboration that would have required human interpreters "
-            "for every conversation just a decade ago."
+            "Google's AI weather model GraphCast can predict global weather patterns 10 days out "
+            "more accurately than traditional supercomputer simulations while using 1/1000th of "
+            "the computational resources—running in under 60 seconds instead of hours."
         ),
         (
-            "AI models have been used to design entirely new materials and proteins that do "
-            "not exist in nature, opening up possibilities for new vaccines and sustainable materials."
+            "Researchers used AI to discover a new class of antibiotics called abaucin that kills "
+            "MRSA superbugs through a novel mechanism, after screening 12 million chemical compounds—"
+            "the first new antibiotic class found in decades."
         ),
         (
-            "AI is being used in agriculture to analyze satellite and drone imagery, helping "
-            "farmers optimize water usage and increase yields while reducing environmental impact."
+            "AI systems have learned to read and translate ancient scripts like Linear B and "
+            "cuneiform tablets, revealing lost knowledge from civilizations thousands of years ago "
+            "that would have taken archaeologists decades to decipher manually."
         ),
         (
-            "Some logistics companies use AI route-optimization engines that reduce fuel "
-            "consumption and CO₂ emissions by double-digit percentages across massive fleets."
+            "Waymo's autonomous taxis have completed over 10 million fully driverless miles in "
+            "real-world traffic with a safety record better than human drivers, proving self-driving "
+            "technology is now commercially viable in major cities."
         ),
         (
-            "Financial institutions deploy AI systems that monitor billions of transactions "
-            "in real time, catching fraud patterns that would be impossible for humans to spot."
+            "AI models can now detect Parkinson's disease up to 7 years before clinical symptoms "
+            "appear by analyzing subtle changes in speech patterns, enabling earlier intervention "
+            "and potentially slowing disease progression."
         ),
         (
-            "Hospitals are piloting AI tools that read X-rays and CT scans as accurately as "
-            "specialist radiologists for specific tasks, acting as a second set of eyes in diagnosis."
+            "Meta's AI discovered over 2.2 million new crystal structures—more than the cumulative "
+            "total discovered by scientists throughout human history—including 736 materials that "
+            "could revolutionize batteries and solar panels."
         ),
         (
-            "AI-generated deepfakes have become so realistic that entire research fields are now "
-            "dedicated to detecting synthetic media and proving that content is authentic."
+            "AI systems are optimizing quantum computer error correction, bringing us closer to "
+            "fault-tolerant quantum computers that could solve problems in minutes that would take "
+            "classical supercomputers billions of years."
+        ),
+        (
+            "Researchers used AI to repurpose existing drugs for new diseases by predicting "
+            "unexpected molecular interactions, identifying potential cancer treatments from "
+            "medications originally designed for diabetes and heart disease."
+        ),
+        (
+            "DeepMind's GNoME AI predicted structures for 2.2 million new materials, expanding "
+            "humanity's catalog of stable materials by nearly 10x and potentially unlocking "
+            "breakthroughs in superconductors, batteries, and carbon capture."
+        ),
+        (
+            "AI models achieved 90% accuracy in predicting student dropout risk years in advance "
+            "by analyzing patterns in coursework and engagement, allowing schools to intervene "
+            "early and keep students on track to graduate."
         ),
     ]
 

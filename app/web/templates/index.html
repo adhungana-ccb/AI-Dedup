@@ -11,34 +11,40 @@
     left:0;
     width:100%;
     height:100%;
-    background:rgba(0,0,0,0.25);
+    background:rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
     z-index:9999;
   "
 >
   <div
     id="loading-card"
-    class="bg-white rounded shadow"
+    class="bg-white rounded shadow-lg"
     style="
-      max-width: 650px;
+      max-width: 700px;
       width: 90%;
       margin: auto;
-      margin-top: 10%;
-      padding: 2rem 2.5rem;
+      margin-top: 8%;
+      padding: 3rem 2.5rem;
       text-align: center;
+      border-radius: 12px;
     "
   >
     <div class="spinner-border text-primary" role="status" style="width:4rem;height:4rem;">
       <span class="visually-hidden">Processing...</span>
     </div>
-    <div class="mt-3 fs-5 fw-semibold">
+    <div class="mt-4 fs-4 fw-semibold text-dark">
       Please wait while the analysis completes...
     </div>
-    <div class="mt-4">
-      <h5>Did you know?</h5>
-      <p id="did-you-know-text" class="mb-0 px-1" style="line-height:1.5;"></p>
+    <div class="mt-2 text-muted">
+      This may take a few moments depending on the number of test cases.
+    </div>
+    <div class="mt-4 p-3 bg-light rounded" id="did-you-know-container">
+      <div class="fw-semibold text-primary mb-2">💡 Did you know?</div>
+      <div id="did-you-know-text" class="text-start" style="line-height:1.6; font-size: 0.95rem;"></div>
     </div>
   </div>
 </div>
+
 
 <div class="container">
   <!-- Wizard step navigation -->
@@ -62,41 +68,64 @@
 
     <!-- STEP 1: Credentials -->
     <div id="wizard-step-1" class="wizard-step">
-      <h4>Step 1 – Enter Credentials</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-key me-2" viewBox="0 0 16 16" style="vertical-align: text-bottom;">
+          <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8m4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5"/>
+          <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+        </svg>
+        Step 1 – Enter Credentials
+      </h4>
+      <p class="text-muted mb-4">Provide your Jira and AI service credentials to get started.</p>
 
       <div class="mb-3">
-        <label class="form-label">Email</label>
+        <label class="form-label">
+          Email Address
+          <span class="text-danger">*</span>
+        </label>
         <input
           type="email"
           name="email"
           class="form-control"
           value="{{ email }}"
+          placeholder="your.email@example.com"
           required
         />
+        <div class="form-text">Your Jira account email address</div>
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Jira API Token</label>
+        <label class="form-label">
+          Jira API Token
+          <span class="text-danger">*</span>
+        </label>
         <input
           type="password"
           name="api_token"
           class="form-control"
           value="{{ api_token }}"
+          placeholder="Enter your Jira API token"
           required
         />
+        <div class="form-text">
+          Generate from <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener">Atlassian Account Settings</a>
+        </div>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label">AI (IQ) API Token</label>
+      <div class="mb-4">
+        <label class="form-label">
+          IQ API Token
+          <span class="text-danger">*</span>
+        </label>
         <input
           type="password"
           name="iq_token"
           class="form-control"
           value="{{ iq_token }}"
+          placeholder="Enter your IQ API token"
           required
         />
         <div class="form-text">
-          Used to call the AI service that suggests which tests to merge or keep.
+          Generate from <a href="https://druvainc.atlassian.net/wiki/spaces/DevOps/pages/3755016264/How+to+Setup+IQ+API+Key" target="_blank" rel="noopener">IQ API Key Setup Guide</a>
         </div>
       </div>
 
@@ -104,115 +133,166 @@
         <button
           type="button"
           id="step1-next-btn"
-          class="btn btn-primary"
+          class="btn btn-primary btn-lg"
           disabled
         >
-          Next &raquo;
+          Next Step
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right ms-1" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+          </svg>
         </button>
       </div>
     </div>
 
     <!-- STEP 2: Find Test Cases & Duplicates -->
     <div id="wizard-step-2" class="wizard-step" style="display: none;">
-      <h4>Step 2 – Select Test Scope &amp; Find Similarities</h4>
+      <h4>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-search me-2" viewBox="0 0 16 16" style="vertical-align: text-bottom;">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+        </svg>
+        Step 2 – Select Test Scope &amp; Find Similarities
+      </h4>
+      <p class="text-muted mb-4">Configure your search criteria to fetch test cases from Jira and identify similar items.</p>
 
-      <div class="mb-3">
-        <label class="form-label">Project Key</label>
-        <input
-          type="text"
-          name="project"
-          class="form-control"
-          value="{{ project }}"
-          required
-        />
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">
+            Project Key
+            <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            name="project"
+            class="form-control"
+            value="{{ project }}"
+            placeholder="e.g., JAN"
+            required
+          />
+          <div class="form-text">Your Jira project key</div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Issue Type</label>
+          <input
+            type="text"
+            name="issue_type"
+            class="form-control"
+            value="{{ issue_type }}"
+            placeholder="e.g., Test"
+          />
+          <div class="form-text">Default: Test</div>
+        </div>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label">Issue Type</label>
-        <input
-          type="text"
-          name="issue_type"
-          class="form-control"
-          value="{{ issue_type }}"
-        />
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Search keyword (optional)</label>
+      <div class="mb-4">
+        <label class="form-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-filter me-1" viewBox="0 0 16 16">
+            <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
+          </svg>
+          Search Keyword <span class="badge bg-secondary">Optional</span>
+        </label>
         <input
           type="text"
           name="search_term"
           class="form-control"
           value="{{ search_term }}"
+          placeholder="Enter keyword to filter tests"
         />
         <div class="form-text">
-          Works like Jira's basic search. If provided, only tests whose text (for example, summary/description)
-          contains this keyword will be included, combined with any labels and exclusions below.
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Labels (comma-separated, optional)</label>
-        <textarea
-          name="other_labels"
-          class="form-control"
-          rows="2"
-        >{{ other_labels_text }}</textarea>
-        <div class="form-text">
-          If provided, the query will require tests to have at least one of these labels.
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Labels to exclude (comma-separated, optional)</label>
-        <input
-          type="text"
-          name="exclude_labels"
-          class="form-control"
-          value="{{ exclude_labels_text }}"
-        />
-        <div class="form-text">
-          If provided, tests that have any of these labels will be excluded.
+          Works like Jira's text search. Only tests matching this keyword in summary/description will be included.
         </div>
       </div>
 
       <div class="mb-3">
         <label class="form-label">
-          Similarity threshold (%) <span class="text-muted">(enter 1–99)</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-tags me-1" viewBox="0 0 16 16">
+            <path d="M3 2v4.586l7 7L14.586 9l-7-7zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586z"/>
+            <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3M1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1z"/>
+          </svg>
+          Labels to Include <span class="badge bg-secondary">Optional</span>
         </label>
-        <input
-          type="number"
-          min="1"
-          max="99"
-          step="1"
-          name="threshold"
+        <textarea
+          name="other_labels"
           class="form-control"
-          value="{{ threshold_percent }}"
-        />
+          rows="2"
+          placeholder="e.g., MABL_TBA_Regression, mabl-automated"
+        >{{ other_labels_text }}</textarea>
         <div class="form-text">
-          Whole number percentage. For example, 85 means 0.85 similarity threshold.
+          Comma-separated. Tests must have at least one of these labels to be included.
         </div>
       </div>
 
       <div class="mb-3">
+        <label class="form-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash-circle me-1" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+            <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+          </svg>
+          Labels to Exclude <span class="badge bg-secondary">Optional</span>
+        </label>
+        <input
+          type="text"
+          name="exclude_labels"
+          class="form-control"
+          value="{{ exclude_labels_text }}"
+          placeholder="e.g., CANNOT_MABL, Archived"
+        />
         <div class="form-text">
-          The JQL is roughly:
-          <code>
-            project = &lt;project&gt;
-            AND issuetype = &lt;type&gt;
-            [AND labels IN (Label1, Label2, ...)]
-            [AND text ~ "&lt;search_term&gt;"]
-            [AND labels NOT IN (ExcludedLabel1, ExcludedLabel2, ...)]
-            AND status != Rejected
-          </code>
+          Comma-separated. Tests with any of these labels will be excluded from the results.
         </div>
       </div>
 
-      <div class="d-flex justify-content-between">
+      <div class="mb-4">
+        <label class="form-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-percent me-1" viewBox="0 0 16 16">
+            <path d="M13.442 2.558a.625.625 0 0 1 0 .884l-10 10a.625.625 0 1 1-.884-.884l10-10a.625.625 0 0 1 .884 0M4.5 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m0 1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5m7 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m0 1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>
+          </svg>
+          Similarity Threshold <span class="text-muted">(1–99%)</span>
+        </label>
+        <div class="input-group">
+          <input
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            name="threshold"
+            class="form-control"
+            value="{{ threshold_percent }}"
+          />
+          <span class="input-group-text">%</span>
+        </div>
+        <div class="form-text">
+          Tests with similarity above this threshold will be flagged as potential duplicates. Recommended: 85%
+        </div>
+      </div>
+
+      <div class="alert alert-info mb-4">
+        <div class="fw-semibold mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-info-circle me-1" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533z"/>
+            <path d="M9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+          </svg>
+          Generated JQL Query Preview:
+        </div>
+        <code style="display: block; white-space: pre-wrap; font-size: 0.85rem;">project = &lt;project&gt; AND issuetype = &lt;type&gt;
+[AND labels IN (Label1, Label2, ...)]
+[AND text ~ "&lt;search_term&gt;"]
+[AND labels NOT IN (ExcludedLabel1, ...)]
+AND status != Rejected</code>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center">
         <button type="button" id="step2-back-btn" class="btn btn-outline-secondary">
-          &laquo; Back
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left me-1" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+          </svg>
+          Back
         </button>
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary btn-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search me-1" viewBox="0 0 16 16">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+          </svg>
           Fetch Tests &amp; Identify Similarities
         </button>
       </div>
@@ -221,56 +301,116 @@
 
   <!-- STEP 3: Deduplicate with AI + results (only if summary exists) -->
   <div id="wizard-step-3" class="wizard-step" {% if not summary %}style="display:none;"{% endif %}>
-    <h4>Step 3 – Review &amp; Merge with AI</h4>
+    <h4>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-robot me-2" viewBox="0 0 16 16" style="vertical-align: text-bottom;">
+        <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135"/>
+        <path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5"/>
+      </svg>
+      Step 3 – Review &amp; Merge with AI
+    </h4>
+    <p class="text-muted mb-4">Analyze similarity results and let AI suggest which tests to merge.</p>
 
     {% if summary %}
-      <div class="mb-3">
-        <p><strong>JQL used:</strong></p>
-        <pre>{{ summary.jql }}</pre>
+      <div class="alert alert-success mb-4">
+        <div class="fw-semibold mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle me-1" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+            <path d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05"/>
+          </svg>
+          Analysis Complete!
+        </div>
+        <strong>JQL Query:</strong>
+        <pre class="mb-0 mt-2">{{ summary.jql }}</pre>
       </div>
 
-      <ul class="list-group mb-3">
-        <li class="list-group-item">
-          <strong>Total tests fetched:</strong> {{ summary.count_issues }}
-        </li>
-        <li class="list-group-item">
-          <strong>Similar test pairs identified:</strong> {{ summary.count_candidates }}
-        </li>
-        <li class="list-group-item">
-          <strong>Similarity threshold:</strong> {{ summary.threshold_percent }}%
-        </li>
-      </ul>
-
-      <div class="mb-3">
-        <a href="{{ url_for('web.download_jsonl') }}" class="btn btn-outline-secondary">
-          Download normalized tests (jira_tests.jsonl)
-        </a>
-        <a href="{{ url_for('web.download_csv') }}" class="btn btn-outline-secondary ms-2">
-          Download similarity candidates (duplicate_candidates.csv)
-        </a>
-      </div>
-
-      <hr />
-
-      <!-- Phase 3 form (AI dedup) -->
-      <form method="post" id="dedup-form" class="mb-4">
-        <input type="hidden" name="action" value="dedup" />
-        <div class="mb-3">
-          <label class="form-label">Instructions for AI</label>
-          <textarea
-            name="instruction_text"
-            class="form-control"
-            rows="3"
-          >{{ instruction_text }}</textarea>
-          <div class="form-text">
-            Optional guidance for how the AI should merge tests.
-            Example: “Don’t merge scenarios that differ by restore-to-original vs restore-to-alternate.”
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card border-primary">
+            <div class="card-body text-center">
+              <div class="text-primary fs-1 fw-bold">{{ summary.count_issues }}</div>
+              <div class="text-muted">Total Tests Fetched</div>
+            </div>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary">
-          Analyze Duplicates with AI
-        </button>
-      </form>
+        <div class="col-md-4">
+          <div class="card border-warning">
+            <div class="card-body text-center">
+              <div class="text-warning fs-1 fw-bold">{{ summary.count_candidates }}</div>
+              <div class="text-muted">Similar Pairs Found</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-info">
+            <div class="card-body text-center">
+              <div class="text-info fs-1 fw-bold">{{ summary.threshold_percent }}%</div>
+              <div class="text-muted">Similarity Threshold</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mb-4">
+        <a href="{{ url_for('web.download_jsonl') }}" class="btn btn-outline-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+          </svg>
+          Download Tests (JSONL)
+        </a>
+        <a href="{{ url_for('web.download_csv') }}" class="btn btn-outline-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+          </svg>
+          Download Similarities (CSV)
+        </a>
+      </div>
+
+      <hr class="my-4" />
+
+      <!-- Phase 3 form (AI dedup) -->
+      <div class="card border-primary mb-4">
+        <div class="card-body">
+          <h5 class="card-title d-flex align-items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-magic me-2" viewBox="0 0 16 16">
+              <path d="M9.5 2.672a.5.5 0 1 0 1 0V.843a.5.5 0 0 0-1 0zm4.5.035A.5.5 0 0 0 13.293 2L12 3.293a.5.5 0 1 0 .707.707zM7.293 4A.5.5 0 1 0 8 3.293L6.707 2A.5.5 0 0 0 6 2.707zm-.621 2.5a.5.5 0 1 0 0-1H4.843a.5.5 0 1 0 0 1zm8.485 0a.5.5 0 1 0 0-1h-1.829a.5.5 0 0 0 0 1zM13.293 10A.5.5 0 1 0 14 9.293L12.707 8a.5.5 0 1 0-.707.707zM9.5 11.157a.5.5 0 0 0 1 0V9.328a.5.5 0 0 0-1 0zm1.854-5.097a.5.5 0 0 0 0-.706l-.708-.708a.5.5 0 0 0-.707 0L8.646 5.94a.5.5 0 0 0 0 .707l.708.708a.5.5 0 0 0 .707 0l1.293-1.293Zm-3 3a.5.5 0 0 0 0-.706l-.708-.708a.5.5 0 0 0-.707 0L.646 13.94a.5.5 0 0 0 0 .707l.708.708a.5.5 0 0 0 .707 0z"/>
+            </svg>
+            <span>AI-Powered Analysis</span>
+          </h5>
+          <p class="card-text text-muted">
+            Let AI analyze the similar test pairs and suggest which ones should be merged into canonical tests.
+          </p>
+          <form method="post" id="dedup-form">
+            <input type="hidden" name="action" value="dedup" />
+            <div class="mb-3">
+              <label class="form-label fw-semibold">
+                Instructions for AI <span class="badge bg-secondary">Optional</span>
+              </label>
+              <textarea
+                name="instruction_text"
+                class="form-control"
+                rows="4"
+                placeholder="Enter your custom instructions for AI analysis here (optional)..."
+              >{{ instruction_text }}</textarea>
+              <div class="form-text">
+                <strong>Examples:</strong>
+                <ul class="mb-0 mt-1">
+                  <li>"Don't merge scenarios that differ by restore-to-original vs restore-to-alternate."</li>
+                  <li>"Prefer keeping tests that have 'automated' label over manual ones."</li>
+                  <li>"Keep tests separate if they use different data sets or environments."</li>
+                </ul>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-100">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cpu me-2" viewBox="0 0 16 16">
+                <path d="M5 0a.5.5 0 0 1 .5.5V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2A2.5 2.5 0 0 1 14 4.5h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14a2.5 2.5 0 0 1-2.5 2.5v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14A2.5 2.5 0 0 1 2 11.5H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2A2.5 2.5 0 0 1 4.5 2V.5A.5.5 0 0 1 5 0m-.5 3A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 11.5 3zM5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5zM6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z"/>
+              </svg>
+              Analyze Duplicates with AI
+            </button>
+          </form>
+        </div>
+      </div>
 
       <!-- Similar test pairs (for reference) -->
       <h5 class="mb-2">
@@ -302,7 +442,6 @@
             <tr>
               <th>Issue 1</th>
               <th>Issue 2</th>
-              <th>Similarity</th>
               <th>Similarity %</th>
               <th>Summary 1</th>
               <th>Summary 2</th>
@@ -313,8 +452,7 @@
               <tr>
                 <td>{{ row.issue_key_1 }}</td>
                 <td>{{ row.issue_key_2 }}</td>
-                <td>{{ row.similarity }}</td>
-                <td>{{ row.similarity_percent }}</td>
+                <td>{{ row.similarity_percent }}%</td>
                 <td>{{ row.summary_1 }}</td>
                 <td>{{ row.summary_2 }}</td>
               </tr>
@@ -461,19 +599,19 @@ document.addEventListener("DOMContentLoaded", function () {
   var hasSummary = {{ 'true' if summary else 'false' }};
 
   const aiFacts = [
-    "DeepMind's AlphaFold has mapped the structures of hundreds of millions of proteins, giving scientists a virtual 'microscope' for biology that used to require years of lab work.",
-    "In 2023, researchers used AI to design a new antibiotic that kills a drug-resistant superbug, after screening millions of candidate molecules in simulation instead of in the lab.",
-    "AI systems now translate between dozens of languages in real time, letting people hold conversations with no shared language and no human interpreter.",
-    "Hospitals are piloting AI tools that can flag early signs of diseases like diabetic retinopathy or certain cancers from medical images, often before symptoms are obvious to clinicians.",
-    "Some logistics companies use AI to plan delivery routes so efficiently that they cut fuel consumption and CO₂ emissions by double-digit percentages across entire fleets.",
-    "AI is being used to optimize power grids and predict renewable energy output, helping balance electricity demand and reduce waste in large cities.",
-    "Scientists are using AI to discover entirely new materials, including better batteries and solar-cell designs, by exploring huge design spaces that would be impossible to search manually.",
-    "AI models can now generate realistic synthetic voices and faces, which has driven new research and regulations around deepfake detection and media authenticity.",
-    "In agriculture, AI systems analyze satellite and drone imagery to detect crop stress early, guiding farmers on exactly where to water or apply nutrients and reducing environmental impact.",
-    "Financial institutions rely on AI to scan billions of transactions in real time, catching complex fraud patterns that humans would almost certainly miss.",
-    "AI has been used to simulate new drug candidates and predict their behavior in the body, shortening parts of the drug discovery process from years to months.",
-    "Cities are experimenting with AI-controlled traffic lights that adapt in real time to traffic patterns, reducing congestion and cutting commuter travel times.",
-    "Emergency-response teams are using AI to analyze satellite images after disasters, quickly identifying damaged buildings and blocked roads to prioritize rescue efforts."
+    "OpenAI's o1 reasoning model can solve complex PhD-level physics and mathematics problems by 'thinking' through multi-step solutions, achieving 83% accuracy on International Mathematics Olympiad qualifying exams—far beyond previous AI capabilities.",
+    "DeepMind's AlphaFold 3 can now predict not just protein structures but how proteins interact with drugs, DNA, and other molecules—accelerating drug discovery by allowing researchers to virtually test billions of drug candidates before entering the lab.",
+    "AI helped design control systems for fusion reactors that achieved stable plasma confinement, bringing commercially viable nuclear fusion energy closer to reality and potentially solving the world's clean energy challenge.",
+    "Google's AI weather model GraphCast can predict global weather patterns 10 days out more accurately than traditional supercomputer simulations while using 1/1000th of the computational resources—running in under 60 seconds instead of hours.",
+    "Researchers used AI to discover a new class of antibiotics called abaucin that kills MRSA superbugs through a novel mechanism, after screening 12 million chemical compounds—the first new antibiotic class found in decades.",
+    "AI systems have learned to read and translate ancient scripts like Linear B and cuneiform tablets, revealing lost knowledge from civilizations thousands of years ago that would have taken archaeologists decades to decipher manually.",
+    "Waymo's autonomous taxis have completed over 10 million fully driverless miles in real-world traffic with a safety record better than human drivers, proving self-driving technology is now commercially viable in major cities.",
+    "AI models can now detect Parkinson's disease up to 7 years before clinical symptoms appear by analyzing subtle changes in speech patterns, enabling earlier intervention and potentially slowing disease progression.",
+    "Meta's AI discovered over 2.2 million new crystal structures—more than the cumulative total discovered by scientists throughout human history—including 736 materials that could revolutionize batteries and solar panels.",
+    "AI systems are optimizing quantum computer error correction, bringing us closer to fault-tolerant quantum computers that could solve problems in minutes that would take classical supercomputers billions of years.",
+    "Researchers used AI to repurpose existing drugs for new diseases by predicting unexpected molecular interactions, identifying potential cancer treatments from medications originally designed for diabetes and heart disease.",
+    "DeepMind's GNoME AI predicted structures for 2.2 million new materials, expanding humanity's catalog of stable materials by nearly 10x and potentially unlocking breakthroughs in superconductors, batteries, and carbon capture.",
+    "AI models achieved 90% accuracy in predicting student dropout risk years in advance by analyzing patterns in coursework and engagement, allowing schools to intervene early and keep students on track to graduate."
   ];
 
   let aiFactIndex = 0;

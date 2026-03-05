@@ -30,32 +30,21 @@ from ..services.dedup_service import (
 
 web_bp = Blueprint("web", __name__, template_folder="templates")
 
-# In-memory storage for last results (simple, single-user)
+# In-memory storage for last results
 _last_tests_jsonl_bytes = None
 _last_candidates_csv_bytes = None
 _last_summary = None
-_last_candidates = []      # List[CandidatePair]
-_last_tests = []           # List[TestCase]
-_last_dedup_decisions = [] # List[dict]
+_last_candidates = []  # List[CandidatePair]
+_last_tests = []  # List[TestCase]
+_last_dedup_decisions = []  # List[dict]
 _last_instruction_text = ""
 
 UI_PAGE_SIZE_DEFAULT = 20
-
 DEFAULT_OTHER_LABELS_TEXT = "MABL_TBA_Regression, mabl-automated, CANNOT_MABL"
 DEFAULT_STATUS_EXCLUDE = "Rejected"
 
 
 def build_jql(project, issue_type, labels, status_exclude, search_term, exclude_labels):
-    """
-    Build a JQL string of the form:
-
-      project = <project>
-      AND issuetype = <issue_type>
-      [AND labels IN (<labels...>)]
-      [AND text ~ "<search_term>"]
-      [AND labels NOT IN (<exclude_labels...>)]
-      [AND status != <status_exclude>]
-    """
     clauses = [f"project = {project}", f"issuetype = {issue_type}"]
 
     if labels:
@@ -76,10 +65,17 @@ def build_jql(project, issue_type, labels, status_exclude, search_term, exclude_
     return " AND ".join(clauses)
 
 
+def description_to_plain(value) -> str:
+    """Convert Jira description to plain text for display/inspection."""
+    if isinstance(value, (dict, list)):
+        parts = []
+        _flatten_adf_node(value, parts)
+        return " ".join(parts).strip()
+    return value_to_text(value).strip()
+
+
 def _flatten_adf_node(node, parts):
-    """
-    Recursively extract plain text from Jira ADF nodes.
-    """
+    """Recursively extract plain text from Jira ADF nodes."""
     if isinstance(node, dict):
         if node.get("type") == "text":
             text = node.get("text")
@@ -90,17 +86,6 @@ def _flatten_adf_node(node, parts):
     elif isinstance(node, list):
         for child in node:
             _flatten_adf_node(child, parts)
-
-
-def description_to_plain(value) -> str:
-    """
-    Convert Jira description to plain text for display/inspection.
-    """
-    if isinstance(value, (dict, list)):
-        parts: list[str] = []
-        _flatten_adf_node(value, parts)
-        return " ".join(parts).strip()
-    return value_to_text(value).strip()
 
 
 @web_bp.route("/", methods=["GET", "POST"])
@@ -115,7 +100,6 @@ def index():
         action = request.form.get("action", "analyze")
 
         if action == "analyze":
-            # Phase 1 & 2: Fetch from Jira + similarity analysis
             base_url = default_base
             email = request.form.get("email") or ""
             api_token = request.form.get("api_token") or ""
@@ -124,19 +108,14 @@ def index():
             issue_type = request.form.get("issue_type") or "Test"
             status_excl = DEFAULT_STATUS_EXCLUDE
 
-            # Threshold: whole-number percent (1–99)
             threshold_percent_str = request.form.get("threshold") or "85"
             try:
                 threshold_percent = int(threshold_percent_str)
             except ValueError:
                 threshold_percent = 85
-            if threshold_percent < 1:
-                threshold_percent = 1
-            if threshold_percent > 99:
-                threshold_percent = 99
+            threshold_percent = max(1, min(threshold_percent, 99))
             threshold = threshold_percent / 100.0
 
-            # Fixed Jira fetch page size; UI page size is separate
             page_size = 20
 
             search_term = request.form.get("search_term") or ""
@@ -189,26 +168,11 @@ def index():
             buf_csv = io.StringIO()
             writer = csv.writer(buf_csv)
             writer.writerow(
-                [
-                    "issue_key_1",
-                    "issue_key_2",
-                    "similarity",
-                    "similarity_percent",
-                    "summary_1",
-                    "summary_2",
-                ]
-            )
+                ["issue_key_1", "issue_key_2", "similarity", "similarity_percent", "summary_1", "summary_2"])
             for c in candidates:
                 writer.writerow(
-                    [
-                        c.issue_key_1,
-                        c.issue_key_2,
-                        f"{c.similarity:.4f}",
-                        f"{c.similarity * 100:.2f}",
-                        c.summary_1,
-                        c.summary_2,
-                    ]
-                )
+                    [c.issue_key_1, c.issue_key_2, f"{c.similarity:.4f}", f"{c.similarity * 100:.2f}", c.summary_1,
+                     c.summary_2])
             _last_candidates_csv_bytes = buf_csv.getvalue().encode("utf-8")
 
             _last_summary = {
@@ -240,13 +204,9 @@ def index():
                 flash("Run Steps 1 and 2 first before analyzing duplicates.", "error")
                 return redirect(url_for("web.index"))
 
-            iq_token = ""
-            if _last_summary:
-                iq_token = _last_summary.get("iq_token", "")
+            iq_token = _last_summary.get("iq_token", "") if _last_summary else ""
 
             decisions = []
-            tokens_prompt = tokens_completion = tokens_total = 0
-
             if iq_token:
                 try:
                     decisions = dedup_with_iq(
@@ -255,44 +215,21 @@ def index():
                         instructions=instruction_text,
                         iq_base_url=iq_base_url,
                         iq_token=iq_token,
-                        max_clusters=15,
+                        max_clusters=310,
                     )
                     if not decisions:
                         decisions = dedup_exact_duplicates(_last_tests)
-                        flash(
-                            "AI returned no suggestions; showing only tests that are exact duplicates.",
-                            "info",
-                        )
-                    usage_totals = get_iq_usage_totals()
-                    tokens_prompt = usage_totals.get("prompt", 0)
-                    tokens_completion = usage_totals.get("completion", 0)
-                    tokens_total = usage_totals.get("total", 0)
-                    print(
-                        "[IQ tokens][dedup total] "
-                        f"prompt={tokens_prompt}, completion={tokens_completion}, total={tokens_total}"
-                    )
-                    flash(
-                        f"Total IQ tokens used for this dedup run: "
-                        f"prompt={tokens_prompt}, completion={tokens_completion}, total={tokens_total}",
-                        "info",
-                    )
+                        flash("AI returned no suggestions; showing only tests that are exact duplicates.", "info")
                 except Exception:
-                    flash(
-                        "There was an internal error when using AI to analyze duplicates; "
-                        "showing only tests that are exact duplicates.",
-                        "error",
-                    )
+                    flash("Error during AI deduplication; showing exact duplicates.", "error")
                     decisions = dedup_exact_duplicates(_last_tests)
             else:
-                flash(
-                    "AI key is not provided; showing only tests that are exact duplicates of each other.",
-                    "info",
-                )
+                flash("AI key is not provided; showing only tests that are exact duplicates of each other.", "info")
                 decisions = dedup_exact_duplicates(_last_tests)
 
-            # Enrich decisions with summaries and reason_to_merge for display and merging.
             test_map = {t.key: t for t in _last_tests}
-            for d in decisions:
+            for idx, d in enumerate(decisions):
+                d["_idx"] = idx  # Add index for template reference
                 canon = test_map.get(d["canonical_key"])
                 dup = test_map.get(d["duplicate_key"])
                 if canon:
@@ -307,22 +244,21 @@ def index():
                     d["duplicate_description"] = ""
 
                 base_reason = d.get("reason", "")
-                if d["canonical_summary"]:
-                    d["reason_to_merge"] = (
-                        f"{base_reason} | Updated canonical summary: {d['canonical_summary']}"
-                    )
+                merged_summary = d.get("merged_summary", "")
+
+                # If AI provided a merged summary, use that; otherwise fall back to canonical summary
+                if merged_summary:
+                    d["reason_to_merge"] = "{} | Suggested merged summary: {}".format(base_reason, merged_summary)
+                elif d["canonical_summary"]:
+                    d["reason_to_merge"] = "{} | Current canonical summary: {}".format(base_reason, d["canonical_summary"])
                 else:
                     d["reason_to_merge"] = base_reason
 
             _last_dedup_decisions = decisions
-            flash(
-                f"AI identified {len(decisions)} tests that can be treated as duplicates of another test.",
-                "info",
-            )
+            flash(f"AI identified {len(decisions)} tests that can be treated as duplicates of another test.", "info")
             return redirect(url_for("web.index"))
 
-    # GET: render UI
-
+    # GET: Render the main page UI
     base_url = default_base
     email = ""
     api_token = ""
@@ -341,9 +277,7 @@ def index():
         project = _last_summary.get("project", project)
         issue_type = _last_summary.get("issue_type", issue_type)
         threshold = _last_summary.get("threshold", threshold)
-        threshold_percent = _last_summary.get(
-            "threshold_percent", int(round(threshold * 100))
-        )
+        threshold_percent = _last_summary.get("threshold_percent", int(round(threshold * 100)))
         page_size = _last_summary.get("page_size", page_size)
         other_labels_text = _last_summary.get("other_labels_text", other_labels_text)
         exclude_labels_text = _last_summary.get("exclude_labels_text", exclude_labels_text)
@@ -352,11 +286,9 @@ def index():
         api_token = _last_summary.get("api_token", api_token)
         iq_token = _last_summary.get("iq_token", iq_token)
 
-    page_str = request.args.get("page", "1") or "1"
-    ui_page_size_str = (
-        request.args.get("ui_page_size", str(UI_PAGE_SIZE_DEFAULT))
-        or str(UI_PAGE_SIZE_DEFAULT)
-    )
+    # Pagination setup
+    page_str = request.args.get("page", "1")
+    ui_page_size_str = request.args.get("ui_page_size", str(UI_PAGE_SIZE_DEFAULT))
 
     try:
         page = int(page_str)
@@ -372,31 +304,15 @@ def index():
         ui_page_size = UI_PAGE_SIZE_DEFAULT
 
     total_candidates = len(_last_candidates) if _last_candidates else 0
-    total_pages = (
-        (total_candidates + ui_page_size - 1) // ui_page_size if total_candidates else 1
-    )
+    total_pages = (total_candidates + ui_page_size - 1) // ui_page_size if total_candidates else 1
 
-    if page < 1:
-        page = 1
-    if page > total_pages:
-        page = total_pages
+    # Ensure page is within bounds
+    page = max(1, min(page, total_pages))
 
     start_idx = (page - 1) * ui_page_size
     end_idx = start_idx + ui_page_size
 
-    candidates_page = []
-    if _last_candidates:
-        for c in _last_candidates[start_idx:end_idx]:
-            candidates_page.append(
-                {
-                    "issue_key_1": c.issue_key_1,
-                    "issue_key_2": c.issue_key_2,
-                    "similarity": round(c.similarity, 4),
-                    "similarity_percent": round(c.similarity * 100, 2),
-                    "summary_1": c.summary_1,
-                    "summary_2": c.summary_2,
-                }
-            )
+    candidates_page = _last_candidates[start_idx:end_idx] if _last_candidates else []
 
     return render_template(
         "index.html",
@@ -422,19 +338,14 @@ def index():
 
 @web_bp.route("/dedup_results")
 def dedup_results():
-    """
-    Paginated view of AI merge suggestions (deduplicated tests).
-    """
+    """Paginated view of AI merge suggestions (deduplicated tests)."""
     global _last_dedup_decisions
     if not _last_dedup_decisions:
         flash("No AI merge suggestions available. Run Step 3 first.", "error")
         return redirect(url_for("web.index"))
 
-    page_str = request.args.get("page", "1") or "1"
-    ui_page_size_str = (
-        request.args.get("ui_page_size", str(UI_PAGE_SIZE_DEFAULT))
-        or str(UI_PAGE_SIZE_DEFAULT)
-    )
+    page_str = request.args.get("page", "1")
+    ui_page_size_str = request.args.get("ui_page_size", str(UI_PAGE_SIZE_DEFAULT))
 
     try:
         page = int(page_str)
@@ -444,31 +355,34 @@ def dedup_results():
         ui_page_size = int(ui_page_size_str)
     except ValueError:
         ui_page_size = UI_PAGE_SIZE_DEFAULT
+
     if ui_page_size not in (20, 50, 100):
         ui_page_size = UI_PAGE_SIZE_DEFAULT
 
     total_decisions = len(_last_dedup_decisions)
-    total_pages = (
-        (total_decisions + ui_page_size - 1) // ui_page_size if total_decisions else 1
-    )
+    total_pages = (total_decisions + ui_page_size - 1) // ui_page_size if total_decisions else 1
 
-    if page < 1:
-        page = 1
-    if page > total_pages:
-        page = total_pages
+    page = max(1, min(page, total_pages))
 
     start_idx = (page - 1) * ui_page_size
     end_idx = start_idx + ui_page_size
 
-    page_rows = []
-    for global_idx, d in enumerate(
-        _last_dedup_decisions[start_idx:end_idx], start=start_idx
-    ):
-        row = dict(d)
-        row["_idx"] = global_idx  # global index into _last_dedup_decisions
-        page_rows.append(row)
+    dedup_page = _last_dedup_decisions[start_idx:end_idx]
 
-    dedup_page = page_rows
+    selected_count = len(request.form.getlist("selected"))
+
+    # Calculate pagination window (same logic as index page)
+    window = 3
+    half = 1
+    start_page = page - half
+    if start_page < 1:
+        start_page = 1
+    end_page = start_page + window - 1
+    if end_page > total_pages:
+        end_page = total_pages
+        start_page = end_page - window + 1
+        if start_page < 1:
+            start_page = 1
 
     return render_template(
         "dedup_results.html",
@@ -477,16 +391,15 @@ def dedup_results():
         total_pages=total_pages,
         ui_page_size=ui_page_size,
         total_decisions=total_decisions,
+        selected_count=selected_count,
+        start_page=start_page,
+        end_page=end_page,
     )
 
 
 @web_bp.route("/dedup_apply", methods=["POST"])
 def dedup_apply():
-    """
-    Take selected AI merge suggestions and apply them directly in Jira:
-      - Create 'Duplicate' issue links.
-      - Comment on canonical and duplicate issues.
-    """
+    """Take selected AI merge suggestions and apply them directly in Jira."""
     global _last_dedup_decisions, _last_summary
     if not _last_dedup_decisions:
         flash("No AI merge suggestions available.", "error")
@@ -532,9 +445,24 @@ def dedup_apply():
         dup = d["duplicate_key"]
         reason = d.get("reason_to_merge", d.get("reason", ""))
 
+        # Get the user-edited summary from the form (if provided)
+        edited_summary_key = f"merged_summary_{idx}"
+        edited_summary = request.form.get(edited_summary_key, "").strip()
+
+        # Fall back to AI-generated summary if no user edit
+        if not edited_summary:
+            edited_summary = d.get("merged_summary", "")
+
         try:
             # Create a 'Duplicate' link: duplicate -> canonical
             jira.link_issues(canonical, dup, link_type="Duplicate")
+
+            # Transition duplicate test to "Rejected" status
+            try:
+                jira.transition_issue(dup, "Rejected")
+            except Exception as trans_err:
+                # If transition fails, log but continue with merge
+                print(f"[Warning] Could not transition {dup} to Rejected: {trans_err}")
 
             # Add comment on duplicate
             dup_comment = (
@@ -543,11 +471,17 @@ def dedup_apply():
             )
             jira.comment_issue(dup, dup_comment)
 
+            # Update canonical test's summary if edited summary provided
+            if edited_summary:
+                jira.update_issue_summary(canonical, edited_summary)
+
             # Add comment on canonical
             canon_comment = (
                 f"Duplicate test {dup} has been merged into this test.\n"
                 f"Reason: {reason}"
             )
+            if edited_summary:
+                canon_comment += f"\n\nSummary updated to: {edited_summary}"
             jira.comment_issue(canonical, canon_comment)
 
             applied += 1
@@ -602,9 +536,7 @@ def download_dedup_csv():
     writer = csv.writer(buf)
     writer.writerow(["group_id", "canonical_key", "duplicate_key", "reason"])
     for d in _last_dedup_decisions:
-        writer.writerow(
-            [d["group_id"], d["canonical_key"], d["duplicate_key"], d["reason"]]
-        )
+        writer.writerow([d["group_id"], d["canonical_key"], d["duplicate_key"], d["reason"]])
 
     return send_file(
         io.BytesIO(buf.getvalue().encode("utf-8")),
